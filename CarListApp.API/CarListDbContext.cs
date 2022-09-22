@@ -9,7 +9,7 @@ namespace CarListApp.API.Data
         {
         }
 
-        public DbSet<Car> Cars { get; set; }
+        public DbSet<Car>? Cars { get; set; }
 
         /*protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
