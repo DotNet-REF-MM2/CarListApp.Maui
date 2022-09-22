@@ -1,4 +1,6 @@
-using Microsoft.Data.Sqlite;
+using CarListApp.API.Data;
+using CarListApp.API.Extensions;
+using CarListApp.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace CarListApp.API
@@ -10,52 +12,68 @@ namespace CarListApp.API
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-            builder.Services.AddAuthorization();
+            builder.Services.ConfigureCors();
+            builder.Services.ConfigureLoggerService();
+            builder.Services.ConfigureSqlServerContext(builder.Configuration);
 
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-            builder.Services.AddCors(o =>
-            {
-                o.AddPolicy("AllowAll", a => a.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod());
-            });
 
-            var dbPath = Path.Join(Directory.GetCurrentDirectory(), "carlist.db");
-            var conn = new SqliteConnection($"Data Source={dbPath}");
-            builder.Services.AddDbContext<CarListDbContext>(o => o.UseSqlite(conn));
+           
 
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+
+
+            using (var scope = app.Services.CreateScope())
             {
-                app.UseSwagger();
-                app.UseSwaggerUI();
+                var services = scope.ServiceProvider;
+
+                var context = services.GetRequiredService<CarListDbContext>();
+                DbInitializer.Initialize(context);
             }
 
             app.UseHttpsRedirection();
-            app.UseCors("AllowAll");
 
-            app.UseAuthorization();
+           app.MapGet("/cars", async (CarListDbContext db) => await db.Cars.ToListAsync());
 
-            var summaries = new[]
-            {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
+            app.MapGet("/cars/{id}", async (int id, CarListDbContext db) =>
+                await db.Cars.FindAsync(id) is Car car ? Results.Ok(car) : Results.NotFound()
+            );
 
-            app.MapGet("/weatherforecast", (HttpContext httpContext) =>
-            {
-                var forecast = Enumerable.Range(1, 5).Select(index =>
-                    new WeatherForecast
-                    {
-                        Date = DateTime.Now.AddDays(index),
-                        TemperatureC = Random.Shared.Next(-20, 55),
-                        Summary = summaries[Random.Shared.Next(summaries.Length)]
-                    })
-                    .ToArray();
-                return forecast;
-            })
-            .WithName("GetWeatherForecast");
+            app.MapPut("/cars/{id}", async (int id, Car car, CarListDbContext db) => {
+                var record = await db.Cars.FindAsync(id);
+                if (record is null) return Results.NotFound();
+
+                record.Make = car.Make;
+                record.Model = car.Model;
+                record.Vin = car.Vin;
+
+                await db.SaveChangesAsync();
+
+                return Results.NoContent();
+
+            });
+
+            app.MapDelete("/cars/{id}", async (int id, CarListDbContext db) => {
+                var record = await db.Cars.FindAsync(id);
+                if (record is null) return Results.NotFound();
+                db.Remove(record);
+                await db.SaveChangesAsync();
+
+                return Results.NoContent();
+
+            });
+
+            app.MapPost("/cars", async (Car car, CarListDbContext db) => {
+                await db.AddAsync(car);
+                await db.SaveChangesAsync();
+
+                return Results.Created($"/cars/{car.Id}", car);
+
+            });
+
+
+
 
             app.Run();
         }

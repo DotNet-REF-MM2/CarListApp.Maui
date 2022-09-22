@@ -1,10 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using CarListApp.API.Models;
+using Microsoft.EntityFrameworkCore;
 
-namespace CarListApp.API
+namespace CarListApp.API.Data
 {
     public class CarListDbContext : DbContext
     {
-        public CarListDbContext(DbContextOptions<CarListDbContext> options) : base(options) { } 
+        public CarListDbContext(DbContextOptions<CarListDbContext> options) : base(options) { }
 
         public DbSet<Car> Cars { get; set; }
 
@@ -19,7 +20,7 @@ namespace CarListApp.API
                          Make = "Honda",
                          Model = "Fit",
                          Vin = "ABC"
-                    },
+                     },
                     new Car
                     {
                         Id = 2,
