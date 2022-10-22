@@ -99,6 +99,8 @@ namespace CarListApp.Maui.Services
         {
             try
             {
+
+                // test message
                 var response = await _httpClient.PostAsJsonAsync("/login", loginModel);
                 response.EnsureSuccessStatusCode();
                 StatusMessage = "Login Successful";
